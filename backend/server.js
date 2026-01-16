@@ -23,6 +23,32 @@ app.get("/api/routes", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch routes" });
   }
 });
+// Get all stops for a specific route
+// Get all stops for a specific route
+app.get("/api/routes/:id/stops", async (req, res) => {
+  const routeId = parseInt(req.params.id); // make sure it's a number
+
+  try {
+    const [stops] = await db.query(
+      `SELECT s.id, s.name, s.lat, s.lon, rs.stop_order
+       FROM route_stops AS rs
+       INNER JOIN stops AS s ON rs.stop_id = s.id
+       WHERE rs.route_id = ?
+       ORDER BY rs.stop_order ASC`,
+      [routeId]
+    );
+
+    if (!stops || stops.length === 0) {
+      return res.status(404).json({ error: "No stops found for this route" });
+    }
+
+    res.json(stops);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch stops" });
+  }
+});
+
 // In-memory bus data (hackathon-friendly)
 let buses = {
   BUS_1: {
@@ -72,8 +98,14 @@ function getDistance(lat1, lon1, lat2, lon2) {
 // ETA endpoint
 app.get("/eta/:id", (req, res) => {
   const bus = buses[req.params.id];
+
+  if (!bus) {
+    return res.status(404).json({ error: "Bus not found" });
+  }
+
   const distance = getDistance(bus.lat, bus.lon, STOP.lat, STOP.lon);
   const eta = (distance / bus.speed) * 60;
+
   res.json({ stop: STOP.name, eta: eta.toFixed(1) });
 });
 

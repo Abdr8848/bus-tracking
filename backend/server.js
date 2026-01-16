@@ -48,15 +48,72 @@ app.get("/api/routes/:id/stops", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch stops" });
   }
 });
+// Get all buses on a specific route
+app.get("/api/routes/:id/buses", (req, res) => {
+  const routeId = parseInt(req.params.id);
+
+  // Filter in-memory buses for this route
+  const routeBuses = Object.values(buses).filter(
+    (bus) => bus.route_id === routeId
+  );
+
+  res.json(routeBuses);
+});
+// Get live route info: stops + buses + ETA
+app.get("/api/routes/:id/live", async (req, res) => {
+  const routeId = parseInt(req.params.id);
+
+  try {
+    // 1️⃣ Get stops for this route from DB
+    const [stops] = await db.query(
+      `SELECT s.id, s.name, s.lat, s.lon, rs.stop_order
+       FROM route_stops AS rs
+       JOIN stops AS s ON rs.stop_id = s.id
+       WHERE rs.route_id = ?
+       ORDER BY rs.stop_order ASC`,
+      [routeId]
+    );
+
+    if (!stops || stops.length === 0) {
+      return res.status(404).json({ error: "No stops found for this route" });
+    }
+
+    // 2️⃣ Get buses on this route
+    const routeBuses = Object.values(buses).filter(
+      (bus) => bus.route_id === routeId
+    );
+
+    // 3️⃣ Calculate ETA for each bus to each stop
+    const liveData = routeBuses.map((bus) => {
+      const etaPerStop = stops.map((stop) => {
+        const distance = getDistance(
+          bus.lat,
+          bus.lon,
+          parseFloat(stop.lat),
+          parseFloat(stop.lon)
+        );
+        const eta = (distance / bus.speed) * 60; // minutes
+        return { stop_id: stop.id, stop_name: stop.name, eta: eta.toFixed(1) };
+      });
+      return { ...bus, eta: etaPerStop };
+    });
+
+    res.json({
+      route_id: routeId,
+      stops,
+      buses: liveData,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch live route data" });
+  }
+});
 
 // In-memory bus data (hackathon-friendly)
 let buses = {
-  BUS_1: {
-    id: "BUS_1",
-    lat: 17.385,
-    lon: 78.4867,
-    speed: 30, // km/h
-  },
+  BUS_1: { id: "BUS_1", route_id: 1, lat: 16.7735, lon: 78.1302, speed: 30 },
+  BUS_2: { id: "BUS_2", route_id: 1, lat: 16.7722, lon: 78.1331, speed: 25 },
+  BUS_3: { id: "BUS_3", route_id: 2, lat: 16.7763, lon: 78.1368, speed: 28 },
 };
 
 // Route stop (single stop for ETA demo)

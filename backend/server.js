@@ -1,9 +1,19 @@
+const db = require("./db");
 const express = require("express");
 const cors = require("cors");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+//Temporary ??
+(async () => {
+  try {
+    const [rows] = await db.query("SELECT 1");
+    console.log("✅ MySQL connected successfully");
+  } catch (err) {
+    console.error("❌ MySQL connection failed:", err.message);
+  }
+})();
 
 // In-memory bus data (hackathon-friendly)
 let buses = {

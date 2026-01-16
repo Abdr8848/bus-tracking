@@ -111,9 +111,22 @@ app.get("/api/routes/:id/live", async (req, res) => {
 
 // In-memory bus data (hackathon-friendly)
 let buses = {
-  BUS_1: { id: "BUS_1", route_id: 1, lat: 16.7735, lon: 78.1302, speed: 30 },
-  BUS_2: { id: "BUS_2", route_id: 1, lat: 16.7722, lon: 78.1331, speed: 25 },
-  BUS_3: { id: "BUS_3", route_id: 2, lat: 16.7763, lon: 78.1368, speed: 28 },
+  BUS_1: {
+    id: "BUS_1",
+    route_id: 1,
+    lat: 16.773504,
+    lon: 78.130198,
+    speed: 30,
+    nextStopIndex: 1, // 0-based index in route stops
+  },
+  BUS_2: {
+    id: "BUS_2",
+    route_id: 1,
+    lat: 16.7722,
+    lon: 78.1331,
+    speed: 25,
+    nextStopIndex: 2,
+  },
 };
 
 // Route stop (single stop for ETA demo)

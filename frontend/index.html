@@ -1,31 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <title>Real-Time Bus Tracker</title>
-
+    <meta charset="UTF-8">
+    <title>Jadcherla Bus Tracker</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 </head>
 
 <body>
-    <header>
-        <h1>🚌 Smart Bus Tracker</h1>
-        <p>Real-time public transport tracking for small cities</p>
-    </header>
-
-    <main>
-        <div id="map"></div>
-
-        <div class="card">
-            <h3>Next Arrival</h3>
-            <p class="eta" id="eta">Loading...</p>
-        </div>
-
-        <div class="footer">
-            Optimized for low bandwidth • Hackathon Prototype
-        </div>
-    </main>
+    <h1>Jadcherla Bus Tracker 🚌</h1>
+    <div id="map"></div>
+    <div id="route-info"></div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="script.js"></script>

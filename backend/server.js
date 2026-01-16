@@ -1,7 +1,6 @@
 const db = require("./db");
 const express = require("express");
 const cors = require("cors");
-
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -14,7 +13,16 @@ app.use(express.json());
     console.error("❌ MySQL connection failed:", err.message);
   }
 })();
-
+// Get all routes
+app.get("/api/routes", async (req, res) => {
+  try {
+    const [routes] = await db.query("SELECT * FROM routes");
+    res.json(routes);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch routes" });
+  }
+});
 // In-memory bus data (hackathon-friendly)
 let buses = {
   BUS_1: {

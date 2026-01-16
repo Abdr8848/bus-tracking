@@ -2,14 +2,30 @@
 <html>
 
 <head>
-    <title>Bus Tracker</title>
+    <title>Real-Time Bus Tracker</title>
+
+    <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 </head>
 
 <body>
-    <h2>Real-Time Bus Tracking</h2>
-    <div id="map" style="height: 400px;"></div>
-    <p id="eta"></p>
+    <header>
+        <h1>🚌 Smart Bus Tracker</h1>
+        <p>Real-time public transport tracking for small cities</p>
+    </header>
+
+    <main>
+        <div id="map"></div>
+
+        <div class="card">
+            <h3>Next Arrival</h3>
+            <p class="eta" id="eta">Loading...</p>
+        </div>
+
+        <div class="footer">
+            Optimized for low bandwidth • Hackathon Prototype
+        </div>
+    </main>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="script.js"></script>

@@ -20,7 +20,7 @@ async function updateBus() {
   );
   document.getElementById(
     "eta"
-  ).innerText = `ETA to ${eta.stop}: ${eta.eta} minutes`;
+  ).innerText = `${eta.stop} in ${eta.eta} minutes`;
 }
 
 setInterval(updateBus, 3000);

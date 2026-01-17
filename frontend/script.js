@@ -1,86 +1,45 @@
-// --------------------
-// 1. Create the map
-// --------------------
 const map = L.map("map").setView([16.7735, 78.1302], 15);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: "&copy; OpenStreetMap contributors",
+  attribution: "© OpenStreetMap",
 }).addTo(map);
 
-// --------------------
-// 2. Define route path (IMPORTANT)
-// These points MUST follow roads
-// --------------------
-const routePath = [
-  [16.773504, 78.130198], // Jadcherla Bus Stand
-  [16.7722, 78.1331], // Nehru Chowrasta
-  [16.7741, 78.1289], // Old Bus Stand
-  [16.7763, 78.1368], // Kalwakurthy Road Bus Stop
+// Route line
+const routeCoords = [
+  [16.773504, 78.130198],
+  [16.7722, 78.1331],
+  [16.7741, 78.1289],
+  [16.7763, 78.1368],
 ];
 
-// Draw route line (debug & validation)
-L.polyline(routePath, {
-  color: "blue",
-  weight: 5,
-}).addTo(map);
+L.polyline(routeCoords, { color: "blue" }).addTo(map);
 
-// --------------------
-// 3. Add stop markers
-// --------------------
-routePath.forEach((point, index) => {
-  L.marker(point)
-    .addTo(map)
-    .bindPopup(`Stop ${index + 1}`);
-});
+// Stops
+fetch("http://localhost:3000/api/routes/1/stops")
+  .then((res) => res.json())
+  .then((stops) => {
+    stops.forEach((stop) => {
+      L.marker([stop.lat, stop.lon]).addTo(map).bindPopup(stop.name);
+    });
+  });
 
-// --------------------
-// 4. Bus icon
-// --------------------
-const busIcon = L.icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/61/61231.png",
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
+// Bus markers
+const busMarkers = {};
 
-// --------------------
-// 5. Create bus marker
-// --------------------
-const busMarker = L.marker(routePath[0], {
-  icon: busIcon,
-}).addTo(map);
+async function updateBuses() {
+  const res = await fetch("http://localhost:3000/api/buses/1");
+  const buses = await res.json();
 
-// --------------------
-// 6. Bus movement state
-// --------------------
-let bus = {
-  index: 0, // position along path
-  speed: 0.02, // lower = slower
-};
+  buses.forEach((bus) => {
+    if (!busMarkers[bus.id]) {
+      busMarkers[bus.id] = L.marker([bus.lat, bus.lon]).addTo(map);
+    } else {
+      busMarkers[bus.id].setLatLng([bus.lat, bus.lon]);
+    }
+  });
 
-// --------------------
-// 7. Move bus smoothly along route
-// --------------------
-function moveBus() {
-  bus.index += bus.speed;
-
-  if (bus.index >= routePath.length - 1) {
-    bus.index = routePath.length - 1;
-    return;
-  }
-
-  const i = Math.floor(bus.index);
-  const t = bus.index - i;
-
-  const [lat1, lng1] = routePath[i];
-  const [lat2, lng2] = routePath[i + 1];
-
-  const lat = lat1 + (lat2 - lat1) * t;
-  const lng = lng1 + (lng2 - lng1) * t;
-
-  busMarker.setLatLng([lat, lng]);
+  document.getElementById("info").innerText =
+    `Route ID: 1 | Stops: 4 | Buses: ${buses.length}`;
 }
 
-// --------------------
-// 8. Animate
-// --------------------
-setInterval(moveBus, 100);
+setInterval(updateBuses, 1000);

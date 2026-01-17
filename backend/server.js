@@ -1,158 +1,94 @@
-const db = require("./db");
 const express = require("express");
 const cors = require("cors");
+const db = require("./db");
+
 const app = express();
 app.use(cors());
 app.use(express.json());
-//Temporary ??
+
+// 🔹 DB test
 (async () => {
   try {
-    const [rows] = await db.query("SELECT 1");
-    console.log("✅ MySQL connected successfully");
-  } catch (err) {
-    console.error("❌ MySQL connection failed:", err.message);
+    await db.query("SELECT 1");
+    console.log("✅ MySQL connected");
+  } catch (e) {
+    console.error("❌ DB error:", e.message);
   }
 })();
+
+/* ======================
+   ROUTES & STOPS APIs
+====================== */
+
 // Get all routes
 app.get("/api/routes", async (req, res) => {
-  try {
-    const [routes] = await db.query("SELECT * FROM routes");
-    res.json(routes);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch routes" });
-  }
+  const [routes] = await db.query("SELECT * FROM routes");
+  res.json(routes);
 });
-// Get all stops for a specific route
-// Get all stops for a specific route
+
+// Get stops for a route
 app.get("/api/routes/:id/stops", async (req, res) => {
-  const routeId = parseInt(req.params.id); // make sure it's a number
-
-  try {
-    const [stops] = await db.query(
-      `SELECT s.id, s.name, s.lat, s.lon, rs.stop_order
-       FROM route_stops AS rs
-       INNER JOIN stops AS s ON rs.stop_id = s.id
-       WHERE rs.route_id = ?
-       ORDER BY rs.stop_order ASC`,
-      [routeId]
-    );
-
-    if (!stops || stops.length === 0) {
-      return res.status(404).json({ error: "No stops found for this route" });
-    }
-
-    res.json(stops);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch stops" });
-  }
-});
-// Get all buses on a specific route
-app.get("/api/routes/:id/buses", (req, res) => {
-  const routeId = parseInt(req.params.id);
-
-  // Filter in-memory buses for this route
-  const routeBuses = Object.values(buses).filter(
-    (bus) => bus.route_id === routeId
+  const routeId = req.params.id;
+  const [stops] = await db.query(
+    `
+    SELECT s.id, s.name, s.lat, s.lon, rs.stop_order
+    FROM route_stops rs
+    JOIN stops s ON s.id = rs.stop_id
+    WHERE rs.route_id = ?
+    ORDER BY rs.stop_order
+    `,
+    [routeId],
   );
-
-  res.json(routeBuses);
-});
-// Get live route info: stops + buses + ETA
-app.get("/api/routes/:id/live", async (req, res) => {
-  const routeId = parseInt(req.params.id);
-
-  try {
-    // 1️⃣ Get stops for this route from DB
-    const [stops] = await db.query(
-      `SELECT s.id, s.name, s.lat, s.lon, rs.stop_order
-       FROM route_stops AS rs
-       JOIN stops AS s ON rs.stop_id = s.id
-       WHERE rs.route_id = ?
-       ORDER BY rs.stop_order ASC`,
-      [routeId]
-    );
-
-    if (!stops || stops.length === 0) {
-      return res.status(404).json({ error: "No stops found for this route" });
-    }
-
-    // 2️⃣ Get buses on this route
-    const routeBuses = Object.values(buses).filter(
-      (bus) => bus.route_id === routeId
-    );
-
-    // 3️⃣ Calculate ETA for each bus to each stop
-    const liveData = routeBuses.map((bus) => {
-      const etaPerStop = stops.map((stop) => {
-        const distance = getDistance(
-          bus.lat,
-          bus.lon,
-          parseFloat(stop.lat),
-          parseFloat(stop.lon)
-        );
-        const eta = (distance / bus.speed) * 60; // minutes
-        return { stop_id: stop.id, stop_name: stop.name, eta: eta.toFixed(1) };
-      });
-      return { ...bus, eta: etaPerStop };
-    });
-
-    res.json({
-      route_id: routeId,
-      stops,
-      buses: liveData,
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch live route data" });
-  }
+  res.json(stops);
 });
 
-// In-memory bus data (hackathon-friendly)
-let buses = {
-  BUS_1: {
-    id: "BUS_1",
-    route_id: 1,
-    lat: 16.773504,
-    lon: 78.130198,
-    speed: 30,
-    currentStopIndex: 0,
-    direction: 1,
-  },
-  BUS_2: {
-    id: "BUS_2",
-    route_id: 1,
-    lat: 16.7722,
-    lon: 78.1331,
-    speed: 28,
-    currentStopIndex: 1,
-    direction: 1,
-  },
-};
-// Route stop (single stop for ETA demo)
-const STOP = {
-  name: "Central Bus Stop",
-  lat: 17.39,
-  lon: 78.49,
-};
+/* ======================
+   BUS SIMULATION LOGIC
+====================== */
 
-// Update bus location
-app.post("/update-location", (req, res) => {
-  const { id, lat, lon } = req.body;
-  if (buses[id]) {
-    buses[id].lat = lat;
-    buses[id].lon = lon;
-  }
-  res.json({ status: "updated" });
+const routePath = [
+  [16.773504, 78.130198],
+  [16.7722, 78.1331],
+  [16.7741, 78.1289],
+  [16.7763, 78.1368],
+];
+
+// Multiple buses
+let buses = [
+  { id: "BUS_1", route_id: 1, speed: 25, index: 0 },
+  { id: "BUS_2", route_id: 1, speed: 20, index: 2 },
+];
+
+// Move buses
+function moveBus(bus) {
+  bus.index += 0.01;
+  if (bus.index >= routePath.length - 1) bus.index = 0;
+
+  const i = Math.floor(bus.index);
+  const t = bus.index - i;
+
+  const [lat1, lon1] = routePath[i];
+  const [lat2, lon2] = routePath[i + 1];
+
+  bus.lat = lat1 + (lat2 - lat1) * t;
+  bus.lon = lon1 + (lon2 - lon1) * t;
+}
+
+// Update every second
+setInterval(() => {
+  buses.forEach(moveBus);
+}, 1000);
+
+// Get buses for a route
+app.get("/api/buses/:routeId", (req, res) => {
+  const routeId = Number(req.params.routeId);
+  res.json(buses.filter((b) => b.route_id === routeId));
 });
 
-// Get all buses
-app.get("/buses", (req, res) => {
-  res.json(Object.values(buses));
-});
+/* ======================
+   ETA CALCULATION
+====================== */
 
-// Simple distance formula
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -162,24 +98,21 @@ function getDistance(lat1, lon1, lat2, lon2) {
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLon / 2) ** 2;
-
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ETA endpoint
-app.get("/eta/:id", (req, res) => {
-  const bus = buses[req.params.id];
+app.get("/api/eta/:busId/:stopId", async (req, res) => {
+  const bus = buses.find((b) => b.id === req.params.busId);
+  const [[stop]] = await db.query("SELECT * FROM stops WHERE id = ?", [
+    req.params.stopId,
+  ]);
 
-  if (!bus) {
-    return res.status(404).json({ error: "Bus not found" });
-  }
+  const dist = getDistance(bus.lat, bus.lon, stop.lat, stop.lon);
+  const eta = (dist / bus.speed) * 60;
 
-  const distance = getDistance(bus.lat, bus.lon, STOP.lat, STOP.lon);
-  const eta = (distance / bus.speed) * 60;
-
-  res.json({ stop: STOP.name, eta: eta.toFixed(1) });
+  res.json({ eta: eta.toFixed(1) });
 });
 
 app.listen(3000, () => {
-  console.log("Backend running on http://localhost:3000");
+  console.log("🚍 Backend running on http://localhost:3000");
 });

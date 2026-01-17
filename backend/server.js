@@ -117,18 +117,19 @@ let buses = {
     lat: 16.773504,
     lon: 78.130198,
     speed: 30,
-    nextStopIndex: 1, // 0-based index in route stops
+    currentStopIndex: 0,
+    direction: 1,
   },
   BUS_2: {
     id: "BUS_2",
     route_id: 1,
     lat: 16.7722,
     lon: 78.1331,
-    speed: 25,
-    nextStopIndex: 2,
+    speed: 28,
+    currentStopIndex: 1,
+    direction: 1,
   },
 };
-
 // Route stop (single stop for ETA demo)
 const STOP = {
   name: "Central Bus Stop",

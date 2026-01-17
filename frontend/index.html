@@ -1,21 +1,37 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <title>Bus Tracker</title>
+    <meta charset="UTF-8" />
+    <title>Live Bus Tracker</title>
+
+    <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <!-- UI -->
     <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
 
-    <h2>Jadcherla Live Bus Tracker</h2>
-    <div id="map"></div>
-    <div id="info"></div>
+    <!-- Header -->
+    <header>
+        <h1>🚌 Jadcherla Live Bus Tracker</h1>
+        <p>Real-time buses & ETA updates</p>
+    </header>
 
+    <!-- Map -->
+    <div id="map"></div>
+
+    <!-- Info Panel -->
+    <div id="panel">
+        <div id="route-info">Loading route...</div>
+        <div id="bus-info"></div>
+    </div>
+
+    <!-- Scripts -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="script.js"></script>
-
 </body>
 
 </html>

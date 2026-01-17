@@ -1,70 +1,18 @@
 // Configuration
-const API_URL = "http://localhost:3000"; // Update with your backend URL
+const API_URL = "http://localhost:3000";
 let map;
 let busMarkers = {};
 let stopMarkers = {};
 let routePolylines = {};
 let selectedRouteId = "101";
-
-// Route Data (will be fetched from backend) - Jadcherla
-const routesData = {
-  101: {
-    id: "101",
-    name: "Route 101 - Jadcherla Main",
-    subtitle: "Town Center Express",
-    path: "Bus Stand ↔ Hospital",
-    status: "Running",
-    stops: [
-      { id: "s1", name: "Bus Stand", lat: 16.7667, lng: 78.8333, eta: "3 min" },
-      {
-        id: "s2",
-        name: "Gandhi Chowk",
-        lat: 16.768,
-        lng: 78.835,
-        eta: "8 min",
-      },
-      { id: "s3", name: "Market Area", lat: 16.77, lng: 78.837, eta: "12 min" },
-    ],
-  },
-  203: {
-    id: "203",
-    name: "Route 203 - Jadcherla Circle",
-    subtitle: "Local Loop",
-    path: "Station Road ↔ Temple Street",
-    status: "Delayed",
-    stops: [
-      {
-        id: "s6",
-        name: "Railway Station",
-        lat: 16.765,
-        lng: 78.83,
-        eta: "5 min",
-      },
-      {
-        id: "s7",
-        name: "Municipal Office",
-        lat: 16.767,
-        lng: 78.832,
-        eta: "9 min",
-      },
-      {
-        id: "s8",
-        name: "Main Temple",
-        lat: 16.769,
-        lng: 78.834,
-        eta: "14 min",
-      },
-    ],
-  },
-};
+let updateInterval;
 
 // Initialize the application
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("Initializing CityBus Tracker...");
   initMap();
-  loadRoutes();
-  displayRoute(selectedRouteId);
+  loadRoutesFromAPI();
   setupEventListeners();
-  startLiveTracking();
 });
 
 // Initialize Leaflet Map
@@ -72,78 +20,110 @@ function initMap() {
   // Default center (Jadcherla, Telangana)
   const defaultCenter = [16.7667, 78.8333];
 
-  map = L.map("map").setView(defaultCenter, 14);
+  map = L.map("map", {
+    center: defaultCenter,
+    zoom: 14,
+    zoomControl: false,
+  });
+
+  // Add zoom control to top left
+  L.control
+    .zoom({
+      position: "topleft",
+    })
+    .addTo(map);
 
   // Add OpenStreetMap tiles
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap contributors",
     maxZoom: 19,
   }).addTo(map);
+
+  console.log("Map initialized");
 }
 
-// Load and display all routes in the sidebar
-function loadRoutes() {
+// Load routes from backend API
+async function loadRoutesFromAPI() {
+  try {
+    const response = await fetch(`${API_URL}/api/routes`);
+    const routes = await response.json();
+
+    console.log("Loaded routes:", routes);
+
+    // Display routes in sidebar
+    displayRoutesList(routes);
+
+    // Display first route by default
+    if (routes.length > 0) {
+      await displayRoute(routes[0].id);
+      await updateMapForRoute(routes[0].id);
+    }
+
+    // Start live tracking
+    startLiveTracking();
+  } catch (error) {
+    console.error("Error loading routes:", error);
+    alert(
+      "Could not connect to backend. Make sure the server is running on port 3000.",
+    );
+  }
+}
+
+// Display routes list in sidebar
+function displayRoutesList(routes) {
   const routesList = document.getElementById("routesList");
   routesList.innerHTML = "";
 
-  Object.values(routesData).forEach((route) => {
-    const routeElement = createRouteElement(route);
+  routes.forEach((route) => {
+    const routeElement = document.createElement("div");
+    routeElement.className = `route-item ${route.id === selectedRouteId ? "active" : ""}`;
+    routeElement.dataset.routeId = route.id;
+
+    routeElement.innerHTML = `
+            <div class="route-item-content">
+                <div class="route-info">
+                    <h4>${route.name}</h4>
+                    <div class="route-path">${route.path}</div>
+                </div>
+                <span class="route-status ${route.status.toLowerCase()}">${route.status}</span>
+            </div>
+        `;
+
+    routeElement.addEventListener("click", async () => {
+      selectedRouteId = route.id;
+      document.querySelectorAll(".route-item").forEach((item) => {
+        item.classList.toggle("active", item.dataset.routeId === route.id);
+      });
+      await displayRoute(route.id);
+      await updateMapForRoute(route.id);
+    });
+
     routesList.appendChild(routeElement);
   });
 }
 
-// Create route list item element
-function createRouteElement(route) {
-  const div = document.createElement("div");
-  div.className = `route-item ${route.id === selectedRouteId ? "active" : ""}`;
-  div.dataset.routeId = route.id;
-
-  div.innerHTML = `
-        <div class="route-item-content">
-            <div class="route-info">
-                <h4>${route.name}</h4>
-                <div class="route-path">${route.path}</div>
-            </div>
-            <span class="route-status ${route.status.toLowerCase()}">${route.status}</span>
-        </div>
-    `;
-
-  div.addEventListener("click", () => {
-    selectRoute(route.id);
-  });
-
-  return div;
-}
-
-// Select and display a route
-function selectRoute(routeId) {
-  selectedRouteId = routeId;
-
-  // Update UI
-  document.querySelectorAll(".route-item").forEach((item) => {
-    item.classList.toggle("active", item.dataset.routeId === routeId);
-  });
-
-  displayRoute(routeId);
-  updateMapForRoute(routeId);
-}
-
 // Display route details
-function displayRoute(routeId) {
-  const route = routesData[routeId];
-  if (!route) return;
+async function displayRoute(routeId) {
+  try {
+    const response = await fetch(`${API_URL}/api/routes/${routeId}`);
+    const route = await response.json();
 
-  // Update route header
-  document.getElementById("routeNumber").textContent = route.id;
-  document.getElementById("routeSubtitle").textContent = route.subtitle;
+    console.log("Displaying route:", route);
 
-  const statusBadge = document.getElementById("statusBadge");
-  statusBadge.textContent =
-    route.status === "Running" ? "On Time" : route.status;
-  statusBadge.className = `status-badge ${route.status === "Delayed" ? "delayed" : ""}`;
+    // Update route header
+    document.getElementById("routeNumber").textContent = route.id;
+    document.getElementById("routeSubtitle").textContent = route.subtitle;
 
-  // Display stops
-  displayStops(route.stops);
+    const statusBadge = document.getElementById("statusBadge");
+    statusBadge.textContent =
+      route.status === "Running" ? "On Time" : route.status;
+    statusBadge.className = `status-badge ${route.status === "Delayed" ? "delayed" : ""}`;
+
+    // Display stops
+    displayStops(route.stops);
+  } catch (error) {
+    console.error("Error displaying route:", error);
+  }
 }
 
 // Display upcoming stops
@@ -151,7 +131,7 @@ function displayStops(stops) {
   const stopsGrid = document.getElementById("stopsGrid");
   stopsGrid.innerHTML = "";
 
-  stops.forEach((stop, index) => {
+  stops.slice(0, 3).forEach((stop, index) => {
     const stopElement = document.createElement("div");
     stopElement.className = `stop-card ${index === 0 ? "active" : ""}`;
 
@@ -163,7 +143,7 @@ function displayStops(stops) {
                     <circle cx="12" cy="12" r="10"></circle>
                     <polyline points="12 6 12 12 16 14"></polyline>
                 </svg>
-                ETA: ${stop.eta}
+                ETA: ${stop.eta || "5 min"}
             </div>
         `;
 
@@ -172,65 +152,128 @@ function displayStops(stops) {
 }
 
 // Update map to show selected route
-function updateMapForRoute(routeId) {
-  const route = routesData[routeId];
-  if (!route) return;
+async function updateMapForRoute(routeId) {
+  try {
+    const response = await fetch(`${API_URL}/api/routes/${routeId}`);
+    const route = await response.json();
 
-  // Clear existing markers and polylines
-  clearMap();
+    console.log("Updating map for route:", route);
 
-  // Add stop markers
-  route.stops.forEach((stop) => {
-    const marker = L.marker([stop.lat, stop.lng], {
-      icon: L.divIcon({
-        className: "stop-marker",
-        iconSize: [32, 32],
-      }),
+    // Clear existing markers and polylines
+    clearMap();
+
+    if (!route.stops || route.stops.length === 0) {
+      console.warn("No stops found for route");
+      return;
+    }
+
+    // Add stop markers
+    route.stops.forEach((stop, index) => {
+      const marker = L.circleMarker(
+        [stop.lat || stop.latitude, stop.lng || stop.longitude],
+        {
+          radius: 8,
+          fillColor: "#3b82f6",
+          color: "#fff",
+          weight: 3,
+          opacity: 1,
+          fillOpacity: 0.8,
+        },
+      ).addTo(map);
+
+      marker.bindPopup(`
+                <div style="font-family: inherit;">
+                    <strong>${stop.name}</strong><br>
+                    <small style="color: #6b7280;">Stop ${index + 1} - ETA: ${stop.eta || "N/A"}</small>
+                </div>
+            `);
+
+      stopMarkers[stop.id] = marker;
+    });
+
+    // Add route polyline
+    const coords = route.stops.map((stop) => [
+      stop.lat || stop.latitude,
+      stop.lng || stop.longitude,
+    ]);
+    const polyline = L.polyline(coords, {
+      color: "#3b82f6",
+      weight: 4,
+      opacity: 0.7,
     }).addTo(map);
 
-    marker.bindPopup(`
-            <div style="font-family: inherit;">
-                <strong>${stop.name}</strong><br>
-                <small style="color: #6b7280;">ETA: ${stop.eta}</small>
-            </div>
-        `);
+    routePolylines[routeId] = polyline;
 
-    stopMarkers[stop.id] = marker;
-  });
+    // Fit map to route bounds
+    map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
 
-  // Add route polyline
-  const coords = route.stops.map((stop) => [stop.lat, stop.lng]);
-  const polyline = L.polyline(coords, {
-    color: "#3b82f6",
-    weight: 4,
-    opacity: 0.7,
-  }).addTo(map);
-
-  routePolylines[routeId] = polyline;
-
-  // Fit map to route bounds
-  map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
-
-  // Add bus marker (simulated position on first stop)
-  addBusMarker(routeId, route.stops[0].lat, route.stops[0].lng);
+    // Fetch and display buses on this route
+    await updateBusPositions();
+  } catch (error) {
+    console.error("Error updating map:", error);
+  }
 }
 
-// Add bus marker to map
-function addBusMarker(routeId, lat, lng) {
-  const busIcon = L.divIcon({
-    className: "bus-marker pulse",
-    html: `
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
-            </svg>
-        `,
-    iconSize: [48, 48],
-  });
+// Update bus positions from backend
+async function updateBusPositions() {
+  try {
+    const response = await fetch(
+      `${API_URL}/api/buses/route/${selectedRouteId}`,
+    );
+    const buses = await response.json();
 
-  const marker = L.marker([lat, lng], { icon: busIcon }).addTo(map);
-  marker.bindPopup(`<strong>Route ${routeId}</strong>`);
+    console.log("Buses on route:", buses);
 
-  busMarkers[routeId] = marker;
+    buses.forEach((bus) => {
+      if (busMarkers[bus.busId]) {
+        // Update existing marker
+        busMarkers[bus.busId].setLatLng([bus.latitude, bus.longitude]);
+      } else {
+        // Create new marker
+        const busIcon = L.divIcon({
+          className: "custom-bus-marker",
+          html: `
+                        <div style="
+                            width: 40px;
+                            height: 40px;
+                            background: #3b82f6;
+                            border: 3px solid white;
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                            animation: pulse 2s infinite;
+                        ">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                            </svg>
+                        </div>
+                    `,
+          iconSize: [40, 40],
+          iconAnchor: [20, 20],
+        });
+
+        const marker = L.marker([bus.latitude, bus.longitude], {
+          icon: busIcon,
+          zIndexOffset: 1000,
+        }).addTo(map);
+
+        marker.bindPopup(`
+                    <div style="font-family: inherit;">
+                        <strong>Bus ${bus.busId}</strong><br>
+                        <small>Route ${bus.routeId}</small><br>
+                        <small>Speed: ${Math.round(bus.speed)} km/h</small><br>
+                        <small>Occupancy: ${bus.currentOccupancy}/${bus.capacity}</small>
+                    </div>
+                `);
+
+        busMarkers[bus.busId] = marker;
+      }
+    });
+  } catch (error) {
+    console.error("Error updating bus positions:", error);
+  }
 }
 
 // Clear map markers and polylines
@@ -269,16 +312,26 @@ function setupEventListeners() {
 }
 
 // Report status to backend
-function reportStatus(type) {
-  const message = type === "crowding" ? "Crowding reported" : "Delay reported";
-  alert(message);
+async function reportStatus(type) {
+  try {
+    const response = await fetch(`${API_URL}/api/report`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        routeId: selectedRouteId,
+        type,
+        timestamp: Date.now(),
+      }),
+    });
 
-  // TODO: Send to backend
-  // fetch(`${API_URL}/api/report`, {
-  //     method: 'POST',
-  //     headers: { 'Content-Type': 'application/json' },
-  //     body: JSON.stringify({ routeId: selectedRouteId, type, timestamp: Date.now() })
-  // });
+    const result = await response.json();
+    const message =
+      type === "crowding" ? "Crowding reported!" : "Delay reported!";
+    alert(message);
+  } catch (error) {
+    console.error("Error reporting status:", error);
+    alert("Failed to report status");
+  }
 }
 
 // Find nearest stop using geolocation
@@ -289,33 +342,31 @@ function findNearestStop() {
   }
 
   navigator.geolocation.getCurrentPosition(
-    (position) => {
+    async (position) => {
       const userLat = position.coords.latitude;
       const userLng = position.coords.longitude;
 
-      const route = routesData[selectedRouteId];
-      let nearest = null;
-      let minDistance = Infinity;
-
-      route.stops.forEach((stop) => {
-        const distance = calculateDistance(
-          userLat,
-          userLng,
-          stop.lat,
-          stop.lng,
+      try {
+        const response = await fetch(
+          `${API_URL}/api/nearest-stop?lat=${userLat}&lng=${userLng}&routeId=${selectedRouteId}`,
         );
-        if (distance < minDistance) {
-          minDistance = distance;
-          nearest = stop;
+        const data = await response.json();
+
+        if (data.stop) {
+          alert(`Nearest stop: ${data.stop.name} (${data.distance} away)`);
+          map.setView(
+            [
+              data.stop.lat || data.stop.latitude,
+              data.stop.lng || data.stop.longitude,
+            ],
+            16,
+          );
+          if (stopMarkers[data.stop.id]) {
+            stopMarkers[data.stop.id].openPopup();
+          }
         }
-      });
-
-      if (nearest) {
-        alert(
-          `Nearest stop: ${nearest.name} (${minDistance.toFixed(2)} km away)`,
-        );
-        map.setView([nearest.lat, nearest.lng], 15);
-        stopMarkers[nearest.id].openPopup();
+      } catch (error) {
+        console.error("Error finding nearest stop:", error);
       }
     },
     (error) => {
@@ -324,67 +375,29 @@ function findNearestStop() {
   );
 }
 
-// Calculate distance between two coordinates (Haversine formula)
-function calculateDistance(lat1, lng1, lat2, lng2) {
-  const R = 6371; // Earth's radius in km
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
 // Download offline data
 function downloadOfflineData() {
-  alert("Offline data download started");
-  // TODO: Implement offline data caching
+  alert("Offline data download started (feature coming soon)");
 }
 
-// Start live tracking (fetch from backend periodically)
+// Start live tracking
 function startLiveTracking() {
-  // Fetch bus positions every 5 seconds
-  setInterval(async () => {
-    try {
-      // TODO: Fetch from your backend
-      // const response = await fetch(`${API_URL}/api/buses`);
-      // const buses = await response.json();
-      // updateBusPositions(buses);
+  // Clear any existing interval
+  if (updateInterval) {
+    clearInterval(updateInterval);
+  }
 
-      // For now, simulate movement
-      simulateBusMovement();
-    } catch (error) {
-      console.error("Error fetching bus positions:", error);
-    }
-  }, 5000);
+  // Update bus positions every 3 seconds
+  updateInterval = setInterval(async () => {
+    await updateBusPositions();
+  }, 3000);
+
+  console.log("Live tracking started");
 }
 
-// Simulate bus movement (for demo)
-function simulateBusMovement() {
-  const route = routesData[selectedRouteId];
-  if (!route || !busMarkers[selectedRouteId]) return;
-
-  const currentPos = busMarkers[selectedRouteId].getLatLng();
-  const stops = route.stops;
-
-  // Simple linear interpolation between stops
-  const newLat = currentPos.lat + (Math.random() - 0.5) * 0.001;
-  const newLng = currentPos.lng + (Math.random() - 0.5) * 0.001;
-
-  busMarkers[selectedRouteId].setLatLng([newLat, newLng]);
-}
-
-// Update bus positions from backend data
-function updateBusPositions(buses) {
-  buses.forEach((bus) => {
-    if (busMarkers[bus.routeId]) {
-      busMarkers[bus.routeId].setLatLng([bus.latitude, bus.longitude]);
-    } else {
-      addBusMarker(bus.routeId, bus.latitude, bus.longitude);
-    }
-  });
-}
+// Stop live tracking when page unloads
+window.addEventListener("beforeunload", () => {
+  if (updateInterval) {
+    clearInterval(updateInterval);
+  }
+});

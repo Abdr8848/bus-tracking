@@ -5,30 +5,30 @@
 body {
   margin: 0;
   font-family: "Segoe UI", Arial, sans-serif;
-  background: #f0f2f5;
+  background: #f3f4f6;
 }
 
 /* Header */
 header {
-  padding: 12px 20px;
+  padding: 14px 20px;
   background: #1f2937;
   color: white;
 }
 
 header h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 header p {
-  margin: 2px 0 0;
-  font-size: 13px;
-  color: #cbd5e1;
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #9ca3af;
 }
 
 /* Map */
 #map {
-  height: calc(100vh - 140px);
+  height: calc(100vh - 170px);
   width: 100%;
 }
 
@@ -36,20 +36,15 @@ header p {
 #panel {
   background: white;
   padding: 12px 20px;
-  border-top: 1px solid #ddd;
+  border-top: 1px solid #e5e7eb;
 }
 
 #route-info {
-  font-weight: bold;
+  font-weight: 600;
   margin-bottom: 6px;
 }
 
-#bus-info {
-  font-size: 14px;
-  color: #374151;
-}
-
-/* Leaflet popup */
-.leaflet-popup-content {
-  font-size: 14px;
+#bus-info div {
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
 }

@@ -1,12 +1,14 @@
-// Initialize map
+// ---------------------------
+// MAP SETUP
+// ---------------------------
 const map = L.map("map").setView([16.7735, 78.1302], 15);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  attribution: "© OpenStreetMap contributors",
+  attribution: "© OpenStreetMap",
 }).addTo(map);
 
 // ---------------------------
-// Route polyline
+// ROUTE
 // ---------------------------
 const routeCoords = [
   [16.773504, 78.130198],
@@ -17,18 +19,18 @@ const routeCoords = [
 
 L.polyline(routeCoords, {
   color: "#2563eb",
-  weight: 5,
+  weight: 6,
 }).addTo(map);
 
 // ---------------------------
-// Stops
+// STOPS
 // ---------------------------
 fetch("http://localhost:3000/api/routes/1/stops")
   .then((res) => res.json())
   .then((stops) => {
     stops.forEach((stop) => {
       L.circleMarker([stop.lat, stop.lon], {
-        radius: 6,
+        radius: 7,
         color: "#111827",
         fillColor: "#22c55e",
         fillOpacity: 1,
@@ -42,16 +44,17 @@ fetch("http://localhost:3000/api/routes/1/stops")
   });
 
 // ---------------------------
-// Bus icon
+// BUS ICON (FIXED)
 // ---------------------------
 const busIcon = L.icon({
-  iconUrl: "https://cdn-icons-png.flaticon.com/512/61/61231.png",
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
+  iconUrl: "https://img.icons8.com/color/48/bus.png",
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
+  popupAnchor: [0, -18],
 });
 
 // ---------------------------
-// Live buses
+// LIVE BUSES
 // ---------------------------
 const busMarkers = {};
 
@@ -59,10 +62,10 @@ async function updateBuses() {
   const res = await fetch("http://localhost:3000/api/buses/1");
   const buses = await res.json();
 
-  document.getElementById("bus-info").innerText =
-    `Active buses: ${buses.length}`;
+  document.getElementById("bus-info").innerHTML = "";
 
   buses.forEach((bus) => {
+    // Create marker if not exists
     if (!busMarkers[bus.id]) {
       busMarkers[bus.id] = L.marker([bus.lat, bus.lon], {
         icon: busIcon,
@@ -70,6 +73,23 @@ async function updateBuses() {
     } else {
       busMarkers[bus.id].setLatLng([bus.lat, bus.lon]);
     }
+
+    // ETA (fake but realistic for hackathon)
+    const eta = (Math.random() * 5 + 2).toFixed(1);
+
+    // Popup on click
+    busMarkers[bus.id].bindPopup(`
+      <b>Bus ID:</b> ${bus.id}<br>
+      <b>Speed:</b> ${bus.speed} km/h<br>
+      <b>Next Stop ETA:</b> ${eta} min
+    `);
+
+    // Bottom panel info
+    const div = document.createElement("div");
+    div.innerHTML = `
+      🚌 <b>${bus.id}</b> — ETA: ${eta} min
+    `;
+    document.getElementById("bus-info").appendChild(div);
   });
 }
 

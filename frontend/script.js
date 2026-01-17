@@ -1,55 +1,86 @@
-const map = L.map("map").setView([16.7735, 78.1302], 15); // center on Jadcherla
+// --------------------
+// 1. Create the map
+// --------------------
+const map = L.map("map").setView([16.7735, 78.1302], 15);
 
-// Tile layer
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19,
+  attribution: "&copy; OpenStreetMap contributors",
 }).addTo(map);
 
-// Store markers
-let stopMarkers = [];
-let busMarkers = {};
+// --------------------
+// 2. Define route path (IMPORTANT)
+// These points MUST follow roads
+// --------------------
+const routePath = [
+  [16.773504, 78.130198], // Jadcherla Bus Stand
+  [16.7722, 78.1331], // Nehru Chowrasta
+  [16.7741, 78.1289], // Old Bus Stand
+  [16.7763, 78.1368], // Kalwakurthy Road Bus Stop
+];
 
-// Load route 1 live data
-async function loadRoute(routeId = 1) {
-  const res = await fetch(`http://localhost:3000/api/routes/${routeId}/live`);
-  const data = await res.json();
+// Draw route line (debug & validation)
+L.polyline(routePath, {
+  color: "blue",
+  weight: 5,
+}).addTo(map);
 
-  // Display route info
-  const routeInfo = `
-    Route ID: ${data.route_id} | Stops: ${data.stops.length} | Buses: ${data.buses.length}
-  `;
-  document.getElementById("route-info").innerText = routeInfo;
+// --------------------
+// 3. Add stop markers
+// --------------------
+routePath.forEach((point, index) => {
+  L.marker(point)
+    .addTo(map)
+    .bindPopup(`Stop ${index + 1}`);
+});
 
-  // Add stop markers
-  stopMarkers.forEach((m) => map.removeLayer(m));
-  stopMarkers = data.stops.map((stop) => {
-    return L.marker([stop.lat, stop.lon], { title: stop.name })
-      .addTo(map)
-      .bindPopup(`<b>${stop.name}</b>`);
-  });
+// --------------------
+// 4. Bus icon
+// --------------------
+const busIcon = L.icon({
+  iconUrl: "https://cdn-icons-png.flaticon.com/512/61/61231.png",
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
+});
 
-  // Add/update bus markers
-  data.buses.forEach((bus) => {
-    const lat = bus.lat;
-    const lon = bus.lon;
-    const popupContent = `<b>${bus.id}</b><br>Next stop ETA: ${bus.eta[0].eta} min`;
+// --------------------
+// 5. Create bus marker
+// --------------------
+const busMarker = L.marker(routePath[0], {
+  icon: busIcon,
+}).addTo(map);
 
-    if (busMarkers[bus.id]) {
-      busMarkers[bus.id].setLatLng([lat, lon]);
-      busMarkers[bus.id].setPopupContent(popupContent);
-    } else {
-      busMarkers[bus.id] = L.marker([lat, lon], {
-        icon: L.icon({
-          iconUrl: "https://cdn-icons-png.flaticon.com/512/61/61231.png",
-          iconSize: [25, 25],
-        }),
-      })
-        .addTo(map)
-        .bindPopup(popupContent);
-    }
-  });
+// --------------------
+// 6. Bus movement state
+// --------------------
+let bus = {
+  index: 0, // position along path
+  speed: 0.02, // lower = slower
+};
+
+// --------------------
+// 7. Move bus smoothly along route
+// --------------------
+function moveBus() {
+  bus.index += bus.speed;
+
+  if (bus.index >= routePath.length - 1) {
+    bus.index = routePath.length - 1;
+    return;
+  }
+
+  const i = Math.floor(bus.index);
+  const t = bus.index - i;
+
+  const [lat1, lng1] = routePath[i];
+  const [lat2, lng2] = routePath[i + 1];
+
+  const lat = lat1 + (lat2 - lat1) * t;
+  const lng = lng1 + (lng2 - lng1) * t;
+
+  busMarker.setLatLng([lat, lng]);
 }
 
-// Update every 3 seconds
-loadRoute();
-setInterval(() => loadRoute(), 3000);
+// --------------------
+// 8. Animate
+// --------------------
+setInterval(moveBus, 100);

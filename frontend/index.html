@@ -2,35 +2,149 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
-    <title>Live Bus Tracker</title>
-
-    <!-- Leaflet -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
-    <!-- UI -->
-    <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CityBus Tracker</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 
 <body>
-
     <!-- Header -->
-    <header>
-        <h1>🚌 Jadcherla Live Bus Tracker</h1>
-        <p>Real-time buses & ETA updates</p>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                        </svg>
+                    </div>
+                    <h1>CityBus Tracker</h1>
+                </div>
+                <div class="header-right">
+                    <label class="low-data-toggle">
+                        Low Data
+                        <input type="checkbox" id="lowDataMode">
+                    </label>
+                    <nav class="nav">
+                        <a href="#" class="nav-link active">Home</a>
+                        <a href="#" class="nav-link">Routes</a>
+                        <a href="#" class="nav-link">Alerts</a>
+                    </nav>
+                </div>
+            </div>
+        </div>
     </header>
 
-    <!-- Map -->
-    <div id="map"></div>
+    <main class="main-content">
+        <div class="container">
+            <div class="grid">
+                <!-- Left Panel -->
+                <div class="left-panel">
+                    <!-- Route Header -->
+                    <div class="card route-header">
+                        <div class="route-title-section">
+                            <div>
+                                <h2 class="route-title">Route <span id="routeNumber">101</span></h2>
+                                <p class="route-subtitle" id="routeSubtitle">Golden Temple Express</p>
+                            </div>
+                            <span class="status-badge" id="statusBadge">On Time</span>
+                        </div>
 
-    <!-- Info Panel -->
-    <div id="panel">
-        <div id="route-info">Loading route...</div>
-        <div id="bus-info"></div>
-    </div>
+                        <!-- Upcoming Stops -->
+                        <div class="upcoming-stops">
+                            <div class="section-header">
+                                <h3>Upcoming Stops</h3>
+                                <button class="find-nearest-btn">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                        <circle cx="12" cy="10" r="3"></circle>
+                                    </svg>
+                                    Find Nearest
+                                </button>
+                            </div>
 
-    <!-- Scripts -->
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+                            <div class="stops-grid" id="stopsGrid">
+                                <!-- Stops will be dynamically inserted -->
+                            </div>
+                        </div>
+
+                        <!-- Status Buttons -->
+                        <div class="status-buttons">
+                            <button class="status-btn crowding-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                </svg>
+                                Report Crowding
+                            </button>
+                            <button class="status-btn delay-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                </svg>
+                                Report Delay
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- All Routes -->
+                    <div class="card all-routes">
+                        <div class="section-header">
+                            <h3>All Routes</h3>
+                            <button class="download-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                                Download Offline
+                            </button>
+                        </div>
+
+                        <div class="routes-list" id="routesList">
+                            <!-- Routes will be dynamically inserted -->
+                        </div>
+                    </div>
+
+                    <!-- Settings -->
+                    <div class="card settings">
+                        <h3>Settings</h3>
+                        <div class="settings-row">
+                            <label>Language</label>
+                            <select id="languageSelect">
+                                <option value="en">English</option>
+                                <option value="hi">हिंदी</option>
+                                <option value="pa">ਪੰਜਾਬੀ</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map Panel -->
+                <div class="map-panel">
+                    <div class="map-container">
+                        <div class="map-search">
+                            <input type="text" id="mapSearch" placeholder="Search routes, stops, or destinations...">
+                        </div>
+                        <div id="map"></div>
+                        <div class="map-status">Live Tracking Active</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
 </body>
 

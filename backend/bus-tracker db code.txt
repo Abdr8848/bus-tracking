@@ -1,0 +1,169 @@
+﻿🗂 1. stops table
+
+
+CREATE TABLE stops (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  lat DECIMAL(9,6) NOT NULL,
+  lon DECIMAL(9,6) NOT NULL
+);
+
+
+
+
+📌 Why:
+
+
+Stores real physical locations
+Lat/Lon precision is correct for maps
+
+
+🗂 2. routes table
+
+
+CREATE TABLE routes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  start_stop_id INT,
+  end_stop_id INT,
+  first_bus TIME,
+  last_bus TIME,
+  FOREIGN KEY (start_stop_id) REFERENCES stops(id),
+  FOREIGN KEY (end_stop_id) REFERENCES stops(id)
+);
+
+
+
+
+📌 Why:
+
+
+Separates route identity from stops
+First/last bus is judge-friendly info
+
+
+🗂 3. route_stops table (VERY IMPORTANT)
+
+
+CREATE TABLE route_stops (
+  route_id INT,
+  stop_id INT,
+  stop_order INT,
+  PRIMARY KEY (route_id, stop_order),
+  FOREIGN KEY (route_id) REFERENCES routes(id),
+  FOREIGN KEY (stop_id) REFERENCES stops(id)
+);
+
+
+
+
+📌 Why:
+
+
+Defines order of stops
+Allows same stop in multiple routes
+This is real transport-system design
+
+
+🗂 4. buses table
+
+
+CREATE TABLE buses (
+  id VARCHAR(20) PRIMARY KEY,
+  route_id INT,
+  lat DECIMAL(9,6),
+  lon DECIMAL(9,6),
+  status VARCHAR(20),
+  FOREIGN KEY (route_id) REFERENCES routes(id)
+);
+
+
+
+
+📌 Why:
+
+
+Each bus is live-tracked
+status helps later (active / idle)
+
+
+STEP : Seed Data (Jadcherla)
+
+
+These are realistic + demo-friendly.
+
+
+📍 Insert Stops
+
+
+INSERT INTO stops (name, lat, lon) VALUES
+('Jadcherla Bus Stand', 16.773504, 78.130198),
+('Nehru Chowrasta', 16.772200, 78.133100),
+('Old Bus Stand', 16.774100, 78.128900),
+('Kalwakurthy Road Bus Stop', 16.776300, 78.136800),
+('Housing Board', 16.770900, 78.125600);
+
+
+🚌 Insert Routes
+
+
+INSERT INTO routes (name, start_stop_id, end_stop_id, first_bus, last_bus)
+VALUES
+('Town Inner Loop', 1, 4, '06:00', '21:00'),
+('East Connector', 4, 1, '05:30', '20:30'),
+('Terminal Shuttle', 1, 3, '06:00', '22:00');
+
+
+🔗 Link Stops to Routes
+
+
+Route 1 — Town Inner Loop (id = 1) :
+
+
+INSERT INTO route_stops VALUES
+(1, 1, 1),
+(1, 2, 2),
+(1, 3, 3),
+(1, 4, 4);
+
+
+Route 2 — East Connector (id = 2) :
+
+
+INSERT INTO route_stops VALUES
+(2, 4, 1),
+(2, 2, 2),
+(2, 1, 3);
+
+
+Route 3 — Terminal Shuttle (id = 3) :
+
+
+INSERT INTO route_stops VALUES
+(3, 1, 1),
+(3, 3, 2);
+
+
+🚍 Insert Buses
+
+
+INSERT INTO buses VALUES
+('R1-BUS-1', 1, 16.773504, 78.130198, 'active'),
+('R1-BUS-2', 1, 16.772200, 78.133100, 'active'),
+('R2-BUS-1', 2, 16.776300, 78.136800, 'active'),
+('R3-BUS-1', 3, 16.773504, 78.130198, 'idle');
+
+
+STEP : VERIFY
+Run these:
+
+
+SELECT * FROM stops;
+SELECT * FROM routes;
+SELECT * FROM route_stops;
+SELECT * FROM buses;
+
+
+
+
+If you see tables filled → 🎉 database is READY
